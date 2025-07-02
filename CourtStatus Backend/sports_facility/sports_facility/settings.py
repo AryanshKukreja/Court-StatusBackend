@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from datetime import timedelta
 
@@ -5,12 +6,13 @@ from datetime import timedelta
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-hqygh@eua6cp40k9^9w=(o)2u+at$^yql*39qa2-brls93j%%q'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-hqygh@eua6cp40k9^9w=(o)2u+at$^yql*39qa2-brls93j%%q')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+# Get allowed hosts from environment variable
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 # Application definition
 INSTALLED_APPS = [
@@ -23,11 +25,12 @@ INSTALLED_APPS = [
     'booking',
     'rest_framework',
     'rest_framework_simplejwt',
-    'corsheaders', 
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Added for static files
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -61,11 +64,11 @@ WSGI_APPLICATION = 'sports_facility.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'djongo',
-        'NAME': 'BookingStatus',
+        'NAME': os.environ.get('DB_NAME', 'BookingStatus'),
         'CLIENT': {
-            'host': 'mongodb+srv://aryanshtechhead:XdtUr6uOOCtwkgxE@bookingstatus.ycuivam.mongodb.net/?retryWrites=true&w=majority&appName=BookingStatus',
-            'username': 'aryanshtechhead',
-            'password': 'XdtUr6uOOCtwkgxE',
+            'host': os.environ.get('DB_HOST', 'mongodb+srv://aryanshtechhead:XdtUr6uOOCtwkgxE@bookingstatus.ycuivam.mongodb.net/?retryWrites=true&w=majority&appName=BookingStatus'),
+            'username': os.environ.get('DB_USERNAME', 'aryanshtechhead'),
+            'password': os.environ.get('DB_PASSWORD', 'XdtUr6uOOCtwkgxE'),
             'authSource': 'admin',
             'authMechanism': 'SCRAM-SHA-1',
         },
@@ -110,18 +113,23 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# WhiteNoise configuration for static files
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
 
-CORS_ALLOW_ALL_ORIGINS = True  # For development only
+# Only allow all origins in development
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -162,7 +170,7 @@ SIMPLE_JWT = {
 # MongoDB specific settings
 DJONGO_ENFORCE_SCHEMA = False
 
-# Logging configuration for debugging MongoDB connections
+# Logging configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -176,5 +184,18 @@ LOGGING = {
             'handlers': ['console'],
             'level': 'INFO',
         },
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
     },
 }
+
+# Security settings for production
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_HSTS_SECONDS = 86400
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
