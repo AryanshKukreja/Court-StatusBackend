@@ -8,11 +8,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-hqygh@eua6cp40k9^9w=(o)2u+at$^yql*39qa2-brls93j%%q')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+# TEMPORARILY ENABLE DEBUG TO SEE ERROR DETAILS
+DEBUG = True  # Enable this temporarily to see detailed errors
 
 # Get allowed hosts from environment variable
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = ['*']  # Allow all hosts temporarily for debugging
 
 # Application definition
 INSTALLED_APPS = [
@@ -30,7 +30,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Added for static files
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -45,7 +45,7 @@ ROOT_URLCONF = 'sports_facility.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],  # Add templates directory
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -60,35 +60,31 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'sports_facility.wsgi.application'
 
-# Database - MongoDB Configuration
-DATABASES = {
-    'default': {
-        'ENGINE': 'djongo',
-        'NAME': os.environ.get('DB_NAME', 'BookingStatus'),
-        'CLIENT': {
-            'host': os.environ.get('DB_HOST', 'mongodb+srv://aryanshtechhead:XdtUr6uOOCtwkgxE@bookingstatus.ycuivam.mongodb.net/?retryWrites=true&w=majority&appName=BookingStatus'),
-            'username': os.environ.get('DB_USERNAME', 'aryanshtechhead'),
-            'password': os.environ.get('DB_PASSWORD', 'XdtUr6uOOCtwkgxE'),
-            'authSource': 'admin',
-            'authMechanism': 'SCRAM-SHA-1',
-        },
-        'ENFORCE_SCHEMA': False,
-        'LOGGING': {
-            'version': 1,
-            'loggers': {
-                'djongo': {
-                    'handlers': ['console'],
-                    'level': 'DEBUG',
-                }
+# Database - MongoDB Configuration with error handling
+try:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'djongo',
+            'NAME': os.environ.get('DB_NAME', 'BookingStatus'),
+            'CLIENT': {
+                'host': os.environ.get('DB_HOST', 'mongodb+srv://aryanshtechhead:XdtUr6uOOCtwkgxE@bookingstatus.ycuivam.mongodb.net/?retryWrites=true&w=majority&appName=BookingStatus'),
+                'username': os.environ.get('DB_USERNAME', 'aryanshtechhead'),
+                'password': os.environ.get('DB_PASSWORD', 'XdtUr6uOOCtwkgxE'),
+                'authSource': 'admin',
+                'authMechanism': 'SCRAM-SHA-1',
             },
-            'handlers': {
-                'console': {
-                    'class': 'logging.StreamHandler',
-                }
-            }
+            'ENFORCE_SCHEMA': False,
         }
     }
-}
+except Exception as e:
+    print(f"Database configuration error: {e}")
+    # Fallback to SQLite for debugging
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -114,22 +110,23 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# WhiteNoise configuration for static files
+# Additional static files directories
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+] if (BASE_DIR / 'static').exists() else []
+
+# WhiteNoise configuration
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'gz', 'tgz', 'bz2', 'tbz', 'xz', 'br']
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
-
-# Only allow all origins in development
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True  # For debugging
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -152,13 +149,14 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-CORS_ALLOW_CREDENTIALS = True
-
 # Django REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',  # Temporarily allow all for debugging
+    ],
 }
 
 # JWT Configuration
@@ -167,35 +165,50 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
-# MongoDB specific settings
-DJONGO_ENFORCE_SCHEMA = False
-
-# Logging configuration
+# Enhanced Logging for debugging
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'django.log',
+            'formatter': 'verbose',
         },
     },
     'loggers': {
-        'djongo': {
-            'handlers': ['console'],
-            'level': 'INFO',
-        },
         'django': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
+            'propagate': True,
+        },
+        'djongo': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'booking': {  # Your app
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
         },
     },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
 }
-
-# Security settings for production
-if not DEBUG:
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
-    SECURE_HSTS_SECONDS = 86400
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
